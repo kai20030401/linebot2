@@ -1,0 +1,9 @@
+flask
+gunicorn
+line-bot-sdk
+python-dotenv
+pandas
+psycopg2
+sqlalchemy
+schedule
+apscheduler
