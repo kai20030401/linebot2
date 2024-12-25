@@ -29,9 +29,9 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-dotenv_path = os.path.join(os.path.dirname(__file__), '.gitignore', '.env')
-load_dotenv(dotenv_path, override=True)
-#load_dotenv()
+#dotenv_path = os.path.join(os.path.dirname(__file__), '.gitignore', '.env')
+#load_dotenv(dotenv_path, override=True) #本機開發使用這個抓取env檔
+load_dotenv()
 app = Flask(__name__)
 handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
 line_bot_api = LineBotApi(os.getenv('ACCESS_TOKEN'))
