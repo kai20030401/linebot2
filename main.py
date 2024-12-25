@@ -11,7 +11,7 @@ import PostgreSQL_connect #連接資料庫程式
 import psycopg2
 from sqlalchemy import create_engine
 #from PostgreSQL_connect import search_rollcall_day
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import re  # Import regular expressions module
 import json
@@ -29,9 +29,9 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-#dotenv_path = os.path.join(os.path.dirname(__file__), '.gitignore', '.env')
-#load_dotenv(dotenv_path, override=True)
-load_dotenv()
+dotenv_path = os.path.join(os.path.dirname(__file__), '.gitignore', '.env')
+load_dotenv(dotenv_path, override=True)
+#load_dotenv()
 app = Flask(__name__)
 handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
 line_bot_api = LineBotApi(os.getenv('ACCESS_TOKEN'))
@@ -73,11 +73,12 @@ def handle_message(event):
 
     # 紀錄互動時間
     current_time = datetime.now()
+    current_time_add_8h = current_time + timedelta(hours=8) #上傳雲端要使用台灣時間
     if user_login_status == '登入中' or manager_login_status == '登入中':
         if user_login_status == '登入中':
-            PostgreSQL_connect.update_last_interaction_time(line_id, 'users', current_time, db_cursor, db_conn)
+            PostgreSQL_connect.update_last_interaction_time(line_id, 'users', current_time_add_8h, db_cursor, db_conn)
         else:
-            PostgreSQL_connect.update_last_interaction_time(line_id, 'manager', current_time, db_cursor, db_conn)
+            PostgreSQL_connect.update_last_interaction_time(line_id, 'manager', current_time_add_8h, db_cursor, db_conn)
    
     # 檢查輸入格式是否正確
     match1 = re.match(r'^建立身分[\uFF1A: ](管理者|使用者)\n姓名[\uFF1A: ]([\u4e00-\u9fa5a-zA-Z]+)\n帳號[\uFF1A: ]([a-zA-Z0-9]{8,})\n密碼[\uFF1A: ]([a-zA-Z0-9]{8,})', text)
@@ -144,7 +145,7 @@ def handle_message(event):
         password = match2.group(3).strip()
         if identity == '管理者':
             if manager_login_status == '未登入' and (user_login_status == '未登入' or user_login_status == []):
-                if PostgreSQL_connect.update_login_status('manager', line_id, account, password, current_time, db_conn, db_cursor):
+                if PostgreSQL_connect.update_login_status('manager', line_id, account, password, current_time_add_8h, db_conn, db_cursor):
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text="登入成功！"))
                 else:
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text="登入失敗，請再登入一次！"))
@@ -156,7 +157,7 @@ def handle_message(event):
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text="請先建立管理者帳號。"))  
         else:
             if user_login_status == '未登入' and (manager_login_status == '未登入' or manager_login_status == []):
-                if PostgreSQL_connect.update_login_status('users', line_id, account, password, current_time, db_conn, db_cursor):
+                if PostgreSQL_connect.update_login_status('users', line_id, account, password, current_time_add_8h, db_conn, db_cursor):
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text="登入成功！"))
                 else:
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text="登入失敗，請再登入一次！"))
@@ -316,8 +317,9 @@ def handle_message(event):
         if text == '保存資訊':
             match = re.search(r"(\d{1,2})/\d{1,2}", rollcall_day)
             month = match.group(1)
-            year = datetime.today().strftime('%Y')
-            table_name = f"{year}_{month}month_history_{attendance}"
+            #year = datetime.today().strftime('%Y')
+            year_add_8h = (datetime.today() + timedelta(hours=8)).strftime('%Y') #上傳雲端改用這個取得年份
+            table_name = f"{year_add_8h}_{month}month_history_{attendance}"
             exist = PostgreSQL_connect.search_rollcall_table(table_name, db_cursor)
             save_database(event, exist, table_name, line_id, manager_id, manager_name, course, password, attendance, rollcall_day, rollcall_frequency, db_conn, db_cursor)
         else:
@@ -528,7 +530,7 @@ def handle_message(event):
                 elif rollcall_status == '已簽到':
                     line_bot_api.reply_message(event.reply_token,TextSendMessage(text="您已經簽到過了！"))
                 else:
-                    if PostgreSQL_connect.update_check_in_time(line_id, user_select_course, datetime.now(), db_conn, db_cursor):
+                    if PostgreSQL_connect.update_check_in_time(line_id, user_select_course, datetime.now() + timedelta(hours=8), db_conn, db_cursor):
                         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="您已成功簽到！"))
                     else:
                         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="簽到失敗，請再簽到一次"))
@@ -893,7 +895,8 @@ def Confirmation_message_close_rollcall(event, line_id, db_cursor):
     rollcall_course_list = json.loads(rollcall_course_data)
     course, password, rollcall_day = rollcall_course_list[4], rollcall_course_list[5], rollcall_course_list[8]
 
-    today_date = datetime.today().strftime('%m/%d')
+    #today_date = datetime.today().strftime('%m/%d')
+    today_date = (datetime.today() + timedelta(hours=8)).strftime('%m/%d') #上傳雲端改用這個取得日期
     if today_date != rollcall_day:
         respond = f"關閉點名前請先選擇是否儲存{course}({password})課程{rollcall_day}的點名資訊。"
     else:
