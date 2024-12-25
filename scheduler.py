@@ -3,7 +3,7 @@ import time
 import PostgreSQL_connect  # 資料庫操作模組
 
 # 定義登出時間限制為15分鐘
-LOGOUT_THRESHOLD = 15 * 60
+LOGOUT_THRESHOLD = 3 * 60
 
 # 定時任務檢查登出邏輯
 def check_all_users_for_logout():
