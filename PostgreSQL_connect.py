@@ -1,6 +1,6 @@
 import psycopg2
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 def access_database():
     try:
@@ -343,7 +343,9 @@ def search_rollcall_day(course_name, password, db_cursor):
 # 修改管理者及使用者課程roll_call_setting欄位為'點名中'
 def update_rollcall_setting(attendance, course_name, password, rollcall_day, db_conn, db_cursor):
     try:
-        today_date = datetime.today().strftime('%m/%d')
+        #today_date = datetime.today().strftime('%m/%d')
+        today_date = (datetime.today() + timedelta(hours=8)).strftime('%m/%d') #上傳雲端改用這個取得日期
+
         if rollcall_day != today_date:
             query = "UPDATE manager_courses SET roll_call_setting = '點名中', roll_call_day = %s, roll_call_frequency = %s WHERE course_name = %s AND password = %s;"
             db_cursor.execute(query, (today_date, None, course_name, password))
@@ -647,7 +649,8 @@ def all_rollcall_record(attendance, db_cursor):
 # 重置attendance的簽到請假資訊和select_course,以及關閉點名
 def close_rollcall_and_reset_data(commit, line_id, course, password, attendance, rollcall_day, frequency, db_conn, db_cursor):
     try:
-        today_date = datetime.today().strftime('%m/%d')
+        #today_date = datetime.today().strftime('%m/%d')
+        today_date = (datetime.today() + timedelta(hours=8)).strftime('%m/%d') #上傳雲端改用這個取得日期
         # 清除簽到表的點名狀態(除了已請假的學生)
         if today_date == rollcall_day:
             query_attendance = f"""
