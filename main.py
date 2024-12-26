@@ -20,8 +20,7 @@ from io import StringIO
 import csv
 import pandas as pd
 import random
-
-#from scheduler import init_scheduler  # 引入定時任務模組
+# 引入定時任務模組
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # 載入 smtplib 和 email 函式庫
@@ -39,7 +38,7 @@ line_bot_api = LineBotApi(os.getenv('ACCESS_TOKEN'))
 
 
 # 登出時間限制為15分鐘
-LOGOUT_THRESHOLD = 2 * 60
+LOGOUT_THRESHOLD = 15 * 60
 
 def check_all_users_for_logout():
     db_conn, db_cursor = PostgreSQL_connect.access_database()
@@ -67,7 +66,7 @@ def check_all_users_for_logout():
 # 初始化排程器
 def init_scheduler():
     scheduler = BackgroundScheduler()
-    scheduler.add_job(check_all_users_for_logout, 'interval', minutes=1)
+    scheduler.add_job(check_all_users_for_logout, 'interval', minutes=10)
     scheduler.start()
     return scheduler
 
@@ -1149,5 +1148,4 @@ def send_rollcall_record_Email(head, source, filename, sender_email, recipient_e
 
 
 if __name__ == "__main__":
-    #init_scheduler()  # 啟動定時任務
     app.run(debug=True)
