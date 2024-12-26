@@ -21,7 +21,8 @@ import csv
 import pandas as pd
 import random
 
-from scheduler import init_scheduler  # 引入定時任務模組
+#from scheduler import init_scheduler  # 引入定時任務模組
+from apscheduler.schedulers.background import BackgroundScheduler
 
 # 載入 smtplib 和 email 函式庫
 import smtplib
@@ -35,6 +36,46 @@ load_dotenv()
 app = Flask(__name__)
 handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
 line_bot_api = LineBotApi(os.getenv('ACCESS_TOKEN'))
+
+
+# 登出時間限制為15分鐘
+LOGOUT_THRESHOLD = 2 * 60
+
+def check_all_users_for_logout():
+    db_conn, db_cursor = PostgreSQL_connect.access_database()
+    #current_time = int(time.time())
+    current_time = datetime.now() + timedelta(hours=8)
+
+    db_cursor.execute("SELECT line_id, last_interaction_time FROM users WHERE login = '登入中'")
+    users = db_cursor.fetchall()
+
+    db_cursor.execute("SELECT line_id, last_interaction_time FROM manager WHERE login = '登入中'")
+    managers = db_cursor.fetchall()
+
+    for user in users:
+        line_id, last_interaction_time = user
+        if (current_time - last_interaction_time).total_seconds() > LOGOUT_THRESHOLD: #current_time - last_interaction_time.timestamp() > LOGOUT_THRESHOLD
+            PostgreSQL_connect.logout_user(line_id, 'users', db_cursor, db_conn)
+
+    for manager in managers:
+        line_id, last_interaction_time = manager
+        if (current_time - last_interaction_time).total_seconds() > LOGOUT_THRESHOLD:
+            PostgreSQL_connect.logout_user(line_id, 'manager', db_cursor, db_conn)
+
+    db_conn.close()
+
+# 初始化排程器
+def init_scheduler():
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(check_all_users_for_logout, 'interval', minutes=1)
+    scheduler.start()
+    return scheduler
+
+# 使用 Flask lifecycle hooks 啟動排程器
+@app.before_request
+def ensure_scheduler():
+    if not hasattr(app, 'scheduler'):
+        app.scheduler = init_scheduler()
 
 @app.route("/callback", methods=['POST'])
 def callback():
@@ -1108,5 +1149,5 @@ def send_rollcall_record_Email(head, source, filename, sender_email, recipient_e
 
 
 if __name__ == "__main__":
-    init_scheduler()  # 啟動定時任務
+    #init_scheduler()  # 啟動定時任務
     app.run(debug=True)
